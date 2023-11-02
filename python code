@@ -1,0 +1,98 @@
+# Import necessary modules
+import requests
+import cv2
+import serial
+import numpy as np
+import time
+# Load the video file or camera stream
+#cap = cv2.VideoCapture(1)
+url = "http://192.168.1.157:8080/shot.jpg"
+start_time = time.time()
+# Create the background subtractor object
+megaBoard = serial.Serial('COM3', 9600)
+backSub = cv2.createBackgroundSubtractorMOG2()
+# Define the color range for green ball
+lower_green = (35, 100, 100)
+upper_green = (85, 255, 255)
+# Define functions for controlling the robot movement
+def forward():
+ megaBoard.write(b'F')
+def reverse():
+ megaBoard.write(b'B')
+def stop():
+ megaBoard.write(b'Q')
+def turnright():
+ megaBoard.write(b'R')
+def turnleft():
+ megaBoard.write(b'L')
+# Loop until 'q' key is pressed
+while True:
+ # Read a frame from the video
+ #ret, frame = cap.read()
+ img_resp = requests.get(url)
+ img_arr = np.array(bytearray(img_resp.content), dtype=np.uint8)
+ frame = cv2.imdecode(img_arr, -1)
+ frame = cv2.resize(frame, (900, 540))
+ # Apply background subtraction
+ fgMask = backSub.apply(frame)
+ # Apply color thresholding to detect the green ball
+ blurred = cv2.GaussianBlur(frame, (11, 11), 0)
+ hsv_frame = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
+ green_mask = cv2.inRange(hsv_frame, lower_green, upper_green)
+ green_mask = cv2.erode(green_mask, None, iterations=2)
+ green_mask = cv2.dilate(green_mask, None, iterations=2)
+ green_mask= cv2.bilateralFilter(green_mask, 9, 75, 75)
+ # Find contours of the green ball
+ contours, hierarchy = cv2.findContours(green_mask, cv2.RETR_TREE, 
+cv2.CHAIN_APPROX_SIMPLE)
+ rows, cols, _ = frame.shape
+ center_x = int(rows / 1.3)
+ center_y = int(cols / 3.2)
+ radius = 5
+ color = (0, 0, 255) # red color in BGR format
+ thickness = -1 # Fill the circle
+ cv2.circle(frame, (center_x, center_y), radius, color, thickness)
+ cv2.circle(frame, (center_x + 201, center_y), radius, color, thickness)
+ cv2.circle(frame, (center_x - 201, center_y), radius, color, thickness)
+ if contours:
+ # Get the largest contour (assuming it's the green ball)
+ max_contour = max(contours, key=cv2.contourArea)
+ circum = cv2.arcLength(max_contour, True)
+ (x, y, w, h) = cv2.boundingRect(max_contour)
+# Get the center and radius of the circle enclosing the contour
+ (x, y), radius = cv2.minEnclosingCircle(max_contour)
+ center = (int(x), int(y))
+ # Draw a circle around the green ball
+ #medium_x = int((x + x + w) / 2)
+ #medium_y = int((y + y + w) / 2)
+ cv2.circle(frame, center, int(radius), (0, 255, 0), 2)
+ cv2.circle(frame, center, 5, (0, 0, 255), -1)
+ # Calculate the distance to the ball based on its size
+ distance = 2000 / radius # example calibration for a 10cm ball
+ if circum > 30: # if circumference of circle dtected is less than 30cm
+ # Control the robot movement based on the position and size of the ball
+ if center[0] > (center_x + 201): # if x position of ball is greater than x position of center of vision
+ turnright()
+ elif center[0] < (center_x - 201): # if x position is less than x position of center of vision
+ turnleft()
+ elif abs(center[0] - center_x) <= 200 and distance > 15: # if the absolute difference is less than or
+ # equal to 200 and the distance of ball from robot is greater than 20cm
+ forward()
+ elif abs(center[0] - center_x) <= 100 and distance < 15:# if the absolute difference is less than or
+ # equal to 100 and the distance of ball from robot is less than 20cm
+ stop()
+ elif circum < 30:
+ while (time.time() - start_time) < 10:
+ turnright()
+ # Display the distance on the frame
+ cv2.putText(frame, f"Distance: {distance:.2f} cm", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, 
+(0, 255, 0), 2,
+ cv2.LINE_AA)
+ print(circum)
+ # Display the resulting frame and mask
+ cv2.imshow('Frame', frame)
+ cv2.imshow('Green Mask', green_mask)
+# Exit on 'q' key press
+ if cv2.waitKey(1) == ord('q'):
+ break
+cv2.destroyAllWindows()
