@@ -1,0 +1,62 @@
+int pwm_speedA = 150; // set the pwm to 200
+int pwm_speedB = 150; // set the pwm to 200
+
+void setup() {
+  Serial.begin(9600); //initialise the serial port for debugging
+  pinMode(3, OUTPUT); //speed control pin for motor B
+  pinMode(6, OUTPUT); //directional pin for motor B
+  pinMode(7, OUTPUT); //directional pin for motor B
+  pinMode(11, OUTPUT); //directional pin for motor A
+  pinMode(10, OUTPUT); //directional pin for motor A
+  pinMode(8, OUTPUT); //speed control pin for motor A
+}
+void loop() {
+  if (Serial.read()=='R'){ //compares values returned and hardcoded from the serial port 
+        digitalWrite(6, HIGH); //write a High value to digital pin 6 if value is 'R'
+        digitalWrite(7, LOW);
+        analogWrite(3, pwm_speedB); //the pin will generate a steady rectangular wave of the pwm chosen
+
+        digitalWrite(8, LOW);
+        digitalWrite(10, HIGH);
+        analogWrite(11, pwm_speedA);
+      }
+     // case 'F':
+  else if(Serial.read()=='F'){
+        digitalWrite(6, HIGH);
+        digitalWrite(7, LOW);
+        analogWrite(3, pwm_speedB);
+
+        digitalWrite(8, HIGH);
+        digitalWrite(10, LOW);
+        analogWrite(11, pwm_speedA);
+      } //break;
+      //case 'Q':
+      else if(Serial.read()=='Q'){
+        digitalWrite(6, LOW);
+        digitalWrite(7, LOW);
+        analogWrite(3, pwm_speedB);
+
+        digitalWrite(8, LOW);
+        digitalWrite(10, LOW);
+        analogWrite(11, pwm_speedA);
+      } //break;
+      //case 'L':
+       else if(Serial.read()=='L'){
+        digitalWrite(6, LOW);
+        digitalWrite(7, HIGH);
+        analogWrite(3, pwm_speedB);
+
+        digitalWrite(8, HIGH);
+        digitalWrite(10, LOW);
+        analogWrite(11, pwm_speedA);
+       } //case 'B':
+      else if(Serial.read()=='B'){
+        digitalWrite(6, LOW);
+        digitalWrite(7, HIGH);
+        analogWrite(3, pwm_speedB);
+
+        digitalWrite(8, LOW);
+        digitalWrite(10, HIGH);
+        analogWrite(11, pwm_speedA);
+       }// break;
+    }
